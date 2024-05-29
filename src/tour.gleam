@@ -208,7 +208,11 @@ fn load_lesson(chapter_path: String, names: FileNames) -> snag.Result(Lesson) {
   ))
 }
 
-fn load_content() -> snag.Result(List(Chapter)) {
+fn load_content() {
+  do_load_content(content_path)
+}
+
+pub fn do_load_content(content_path) -> snag.Result(List(Chapter)) {
   use chapters <- result.try(load_directory_names(content_path))
   use chapters <- result.try(list.try_map(chapters, load_chapter))
   Ok(add_prev_next(chapters, [], path_home))
@@ -639,7 +643,7 @@ pub fn arrow_keys_navigation_script(
 
 /// Renders a Lesson's page
 /// Complete with title, lesson, editor and output
-fn lesson_page_render(lesson: Lesson) -> String {
+pub fn lesson_page_render(lesson: Lesson) -> String {
   let navlink = fn(name, link) {
     case link {
       None -> h("span", [], [text(name)])
