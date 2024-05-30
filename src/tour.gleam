@@ -155,11 +155,11 @@ pub type Lesson {
   )
 }
 
-type FileNames {
+pub type FileNames {
   FileNames(path: String, name: String, slug: String)
 }
 
-fn load_directory_names(path: String) -> snag.Result(List(FileNames)) {
+pub fn load_directory_names(path: String) -> snag.Result(List(FileNames)) {
   use files <- result.map(
     simplifile.read_directory(path)
     |> file_error("Failed to read directory " <> path),
