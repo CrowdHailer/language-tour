@@ -209,13 +209,17 @@ fn load_lesson(chapter_path: String, names: FileNames) -> snag.Result(Lesson) {
 }
 
 fn load_content() {
-  do_load_content(content_path)
+  do_load_content(content_path, Some(path_home), Some(path_what_next))
 }
 
-pub fn do_load_content(content_path) -> snag.Result(List(Chapter)) {
+pub fn do_load_content(
+  content_path,
+  before,
+  after,
+) -> snag.Result(List(Chapter)) {
   use chapters <- result.try(load_directory_names(content_path))
   use chapters <- result.try(list.try_map(chapters, load_chapter))
-  Ok(add_prev_next(chapters, [], path_home))
+  Ok(add_prev_next(chapters, [], before, after))
 }
 
 fn write_content(chapters: List(Chapter)) -> snag.Result(Nil) {
@@ -267,7 +271,7 @@ fn write_content(chapters: List(Chapter)) -> snag.Result(Nil) {
   Ok(Nil)
 }
 
-fn contents_list_html(chapters: List(Chapter)) -> String {
+pub fn contents_list_html(chapters: List(Chapter)) -> String {
   let chapters =
     list.flat_map(chapters, fn(chapter) {
       [
@@ -297,9 +301,9 @@ fn contents_list_html(chapters: List(Chapter)) -> String {
     ]),
     ..chapters
   ]
-  |> list.append([
-    h("p", [], [h("a", [#("href", path_what_next)], [text("What's next…?")])]),
-  ])
+  // |> list.append([
+  //   h("p", [], [h("a", [#("href", path_what_next)], [text("What's next…?")])]),
+  // ])
   |> list.map(render_html)
   |> string.join("\n")
 }
@@ -337,23 +341,24 @@ fn write_lesson(lesson: Lesson) -> snag.Result(Nil) {
 fn add_prev_next(
   rest: List(Chapter),
   acc: List(Chapter),
-  previous: String,
+  previous: Option(String),
+  last: Option(String),
 ) -> List(Chapter) {
   case rest {
     [chapter1, Chapter(lessons: [next, ..], ..) as chapter2, ..rest] -> {
       let lessons = chapter1.lessons
       let #(lessons, previous) =
-        add_prev_next_for_chapter(lessons, [], previous, next.path)
+        add_prev_next_for_chapter(lessons, [], previous, Some(next.path))
       let chapter1 = Chapter(..chapter1, lessons: lessons)
-      add_prev_next([chapter2, ..rest], [chapter1, ..acc], previous)
+      add_prev_next([chapter2, ..rest], [chapter1, ..acc], previous, last)
     }
 
     [chapter, ..rest] -> {
       let lessons = chapter.lessons
       let #(lessons, previous) =
-        add_prev_next_for_chapter(lessons, [], previous, path_what_next)
+        add_prev_next_for_chapter(lessons, [], previous, last)
       let chapter = Chapter(..chapter, lessons: lessons)
-      add_prev_next(rest, [chapter, ..acc], previous)
+      add_prev_next(rest, [chapter, ..acc], previous, last)
     }
 
     [] -> list.reverse(acc)
@@ -363,19 +368,19 @@ fn add_prev_next(
 fn add_prev_next_for_chapter(
   rest: List(Lesson),
   acc: List(Lesson),
-  previous: String,
-  last: String,
-) -> #(List(Lesson), String) {
+  previous: Option(String),
+  last: Option(String),
+) -> #(List(Lesson), Option(String)) {
   case rest {
     [lesson1, lesson2, ..rest] -> {
       let next = lesson2.path
-      let lesson = Lesson(..lesson1, previous: Some(previous), next: Some(next))
+      let lesson = Lesson(..lesson1, previous: previous, next: Some(next))
       let rest = [lesson2, ..rest]
-      add_prev_next_for_chapter(rest, [lesson, ..acc], lesson.path, last)
+      add_prev_next_for_chapter(rest, [lesson, ..acc], Some(lesson.path), last)
     }
     [lesson, ..rest] -> {
-      let lesson = Lesson(..lesson, previous: Some(previous), next: Some(last))
-      add_prev_next_for_chapter(rest, [lesson, ..acc], lesson.path, last)
+      let lesson = Lesson(..lesson, previous: previous, next: last)
+      add_prev_next_for_chapter(rest, [lesson, ..acc], Some(lesson.path), last)
     }
     [] -> #(list.reverse(acc), previous)
   }
